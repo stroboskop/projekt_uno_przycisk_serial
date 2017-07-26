@@ -1,5 +1,6 @@
 
-unsigned long prevMil = 0;
+unsigned long prevMilPom = 0;
+unsigned long prevMilPod = 0;
 const long inter = 3000;
 
 boolean stateOfInp = false;
@@ -10,7 +11,8 @@ boolean valIn = false;
 
 boolean pinPod = false;
 boolean pinPom = false;
-
+byte sumOfInp = 0;
+word sumOfByte;
 const int pod = 8;
 const int pom = 9;
 
@@ -25,10 +27,12 @@ void setup() {
   pinMode(5, INPUT);
   pinMode(8, OUTPUT);
   pinMode(9, OUTPUT);
+  sumOfByte = 0;
 }
 
 void loop() {
-  checkButtonsNew();
+  checkButtonPom();
+  checkButtonPod();
   readSerial();
   
   if(boolOutIO)
@@ -40,7 +44,7 @@ void readSerial(){
   if(Serial.available() >0){   
       char inChar = Serial.read();   
 
-      if(inChar == '\n' && valIn == true){       
+      if(inChar == '\n' && valIn){       
         inData.trim();
         finalString = String(inData[0]) + String(inData[1]) + String(inData[2]);
         inDataState = inData[4];
@@ -49,65 +53,71 @@ void readSerial(){
         valIn = false;   
       }      
           
-      if(inChar != '\n' && inChar != '\r' && valIn == true)
+      if(inChar != '\n' && inChar != '\r' && valIn)
         inData += inChar; 
 
       if(inChar == '$'){
       valIn = true;
       }
-}
+  }
 }
 
 void outputIO(String loc, String outVal){
     const int val = outVal.toInt();
+    
     if(loc == "pod"){
     digitalWrite(pod, val);  
-    Serial.println(finalString + "=" + val);
-    finalString = "";
-    boolOutIO = false;
     }
 
     if(loc == "pom"){
     digitalWrite(pom, val);  
-    Serial.println(finalString + "=" + val);
+    }
+
+    Serial.println(loc + "=" + val);
     finalString = "";
     boolOutIO = false;
-    }
 }
 
-
-void checkButtonsNew(){
+void checkButtonPod(){
+  int pinIn = 4;
+  int pinOut = 8;
   unsigned long curMil = millis();
-  if(curMil - prevMil >= inter){
-    if(digitalRead(5) || digitalRead(4)){
-      stateOfInp = true;   
-    }
-    prevMil = curMil;
-  }
-  
-  if(digitalRead(4) && stateOfInp == true){
-      if(prevPod == false){
-          finalString = "pod";
-          inDataState = "1";
-          boolOutIO = true;
-          prevPod = true;
-          Serial.println("false ");
-      }else if(prevPod == true){
-          finalString = "pod";
-          inDataState = "0";
-          boolOutIO = true;
-          prevPod = false;
-          Serial.println("true ");
-      }
-    Serial.println("i jestesmy ");
-    stateOfInp = false;
-  }
-  if(digitalRead(5) && stateOfInp == true){
+  String finStr = "pod";
 
-    //outputIO("pom", readPin);
-    Serial.println("i jestesmy");
-    stateOfInp = false;
-  }
+  if(digitalRead(pinIn) && curMil > prevMilPod){
+      if(curMil - prevMilPod >= 10){
+        finalString = finStr;
+        if(!digitalRead(pinOut)){
+          inDataState = "1";
+        }else if(digitalRead(pinOut)){
+          inDataState = "0";
+        }   
+      boolOutIO = true; 
+      prevMilPod = curMil + 100000;      
+    }
+    }else if(!digitalRead(4)){
+      prevMilPod = curMil;     
+    }
 }
 
+void checkButtonPom(){
+  int pinIn = 5;
+  int pinOut = 9;
+  unsigned long curMil = millis();
+  String finStr = "pom";
 
+  if(digitalRead(pinIn) && curMil > prevMilPom){
+      if(curMil - prevMilPom >= inter){
+        finalString = finStr;
+        if(!digitalRead(pinOut)){
+          inDataState = "1";
+        }else if(digitalRead(pinOut)){
+          inDataState = "0";
+        }   
+      boolOutIO = true;       
+     prevMilPom = curMil + 100000; 
+    }
+    }else if(!digitalRead(4)){
+      prevMilPom = curMil;     
+    }
+}
